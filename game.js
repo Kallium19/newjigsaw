@@ -171,19 +171,6 @@
         }, duration);
     }
 
-    // --------------------------------------------------------------------------
-    // Session Initialization: PeerJS Signaling
-    // --------------------------------------------------------------------------
-    function initPeerJS() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const hostParam = urlParams.get('join') || urlParams.get('host');
-
-        // Check if user is joining as guest via URL
-        if (hostParam) {
-            isHost = false;
-            document.body.classList.add('is-guest');
-            myRoleDisplay.textContent = 'Guest';
-        }
 
     // --------------------------------------------------------------------------
     // Drawer Management (Unobtrusive Menu)
