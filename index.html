@@ -1,287 +1,173 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aether Jigsaw - Premium Online Jigsaw Puzzles</title>
+    <title>P2P Jigsaw Puzzle - Co-op for Kate</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- Google Fonts for premium typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Plus+Jakarta+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <!-- PeerJS for WebRTC P2P Multiplayer Co-Op -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- PeerJS for WebRTC P2P signaling and data channels -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 </head>
 <body>
-    <div id="app-container">
-        <!-- Setup Screen -->
-        <section id="setup-screen" class="screen active">
-            <div class="glow-bg"></div>
-            <div class="setup-card glass">
-                <header class="setup-header">
-                    <h1 class="logo-text">AETHER JIGSAW</h1>
-                    <p class="subtitle">Experience jigsaw puzzles with a state-of-the-art interactive canvas</p>
-                </header>
-
-                <div class="setup-body">
-                    <!-- Image Selection -->
-                    <div class="setup-section">
-                        <h3>1. Choose an Image</h3>
-                        <div class="image-gallery">
-                            <div class="gallery-item active" data-type="procedural" data-value="aurora">
-                                <div class="gallery-preview aurora-gradient"></div>
-                                <span>Sunset Aurora</span>
-                            </div>
-                            <div class="gallery-item" data-type="procedural" data-value="nebula">
-                                <div class="gallery-preview nebula-gradient"></div>
-                                <span>Deep Space Nebula</span>
-                            </div>
-                            <div class="gallery-item" data-type="procedural" data-value="cyber">
-                                <div class="gallery-preview cyber-gradient"></div>
-                                <span>Cyberpunk Grid</span>
-                            </div>
-                            <div class="gallery-item" data-type="procedural" data-value="forest">
-                                <div class="gallery-preview forest-gradient"></div>
-                                <span>Emerald Forest</span>
-                            </div>
-                            <div class="gallery-item" data-type="picsum" data-value="lake">
-                                <div class="gallery-preview lake-preview"></div>
-                                <span>Scenic Lake</span>
-                            </div>
-                            <div class="gallery-item" data-type="picsum" data-value="random">
-                                <div class="gallery-preview random-preview"></div>
-                                <span>Random Photo</span>
-                            </div>
-                            <div class="gallery-item upload-item" id="upload-btn">
-                                <div class="gallery-preview upload-preview">
-                                    <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none">
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-                                    </svg>
-                                </div>
-                                <span>Upload Custom</span>
-                                <input type="file" id="image-input" accept="image/*" style="display: none;">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Custom Image Preview (hidden initially) -->
-                    <div id="custom-preview-container" class="setup-section hidden">
-                        <div class="custom-preview-wrapper glass">
-                            <img id="custom-preview-img" src="" alt="Custom Upload Preview">
-                            <button id="remove-custom-btn" class="btn-icon">
-                                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-                                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Grid / Pieces settings -->
-                    <div class="setup-section">
-                        <h3>2. Select Difficulty</h3>
-                        <div class="difficulty-slider-container">
-                            <input type="range" id="difficulty-slider" min="1" max="5" value="2">
-                            <div class="difficulty-labels">
-                                <span class="label" data-val="1">Easy (12)</span>
-                                <span class="label active" data-val="2">Medium (24)</span>
-                                <span class="label" data-val="3">Hard (48)</span>
-                                <span class="label" data-val="4">Expert (96)</span>
-                                <span class="label" data-val="5">Master (150)</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Toggles -->
-                    <div class="setup-section toggles-grid">
-                        <label class="toggle-control" style="display: none;">
-                            <input type="checkbox" id="rotation-toggle">
-                            <span class="control-box"></span>
-                            <span class="control-label">Allow Piece Rotation <small>(Right click / Space to rotate)</small></span>
-                        </label>
-                        <label class="toggle-control">
-                            <input type="checkbox" id="sound-toggle" checked>
-                            <span class="control-box"></span>
-                            <span class="control-label">Sound Effects</span>
-                        </label>
-                        <label class="toggle-control">
-                            <input type="checkbox" id="guide-toggle" checked>
-                            <span class="control-box"></span>
-                            <span class="control-label">Show Outline Guide</span>
-                        </label>
-                    </div>
-                </div>
-
-                <footer class="setup-footer">
-                    <button id="start-game-btn" class="btn-primary">
-                        <span>Assemble Solo</span>
-                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none">
-                            <path d="M5 12h14M12 5l7 7-7 7"/>
-                        </svg>
-                    </button>
-                    <button id="start-coop-btn" class="btn-coop" type="button">
-                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                        </svg>
-                        <span>Create Co-Op Room</span>
-                    </button>
-                </footer>
-            </div>
-        </section>
-
-        <!-- Game Screen -->
-        <section id="game-screen" class="screen">
-            <!-- HUD Header -->
-            <header class="game-hud glass">
-                <div class="hud-left">
-                    <button id="back-to-menu-btn" class="btn-secondary">
-                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-                            <path d="M19 12H5M12 19l-7-7 7-7"/>
-                        </svg>
-                        <span>Menu</span>
-                    </button>
-                    <div class="hud-divider"></div>
-                    <div class="puzzle-status">
-                        <span class="puzzle-title" id="hud-puzzle-title">Sunset Aurora</span>
-                        <span class="puzzle-pieces-count" id="hud-pieces-count">24 pieces</span>
-                    </div>
-                    <div class="hud-divider coop-only hidden"></div>
-                    <div id="coop-status" class="coop-status-tag hidden">
-                        <span class="coop-status-icon">ðŸ’–</span>
-                        <span id="coop-status-text">Connecting...</span>
-                    </div>
-                </div>
-
-                <div class="hud-center">
-                    <div class="progress-container">
-                        <div class="progress-bar-wrapper">
-                            <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
-                        </div>
-                        <span class="progress-text" id="progress-text">0% solved</span>
-                    </div>
-                </div>
-
-                <div class="hud-right">
-                    <button id="toggle-preview-btn" class="btn-hud" title="Show/Hide Image Preview">
-                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                            <circle cx="8.5" cy="8.5" r="1.5"/>
-                            <polyline points="21 15 16 10 5 21"/>
-                        </svg>
-                        <span>Preview</span>
-                    </button>
-                    <button id="share-btn" class="btn-hud" title="Copy Shareable Link for Friends">
-                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-                            <circle cx="18" cy="5" r="3"/>
-                            <circle cx="6" cy="12" r="3"/>
-                            <circle cx="18" cy="19" r="3"/>
-                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                        </svg>
-                        <span>Share</span>
-                    </button>
-                    <button id="arrange-btn" class="btn-hud" title="Scattered pieces to the sides">
-                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-                            <path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>
-                        </svg>
-                        <span>Scattered</span>
-                    </button>
-                    <button id="solve-cheat-btn" class="btn-hud" title="Instantly solve the puzzle (for testing)">
-                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                        </svg>
-                        <span>Solve</span>
-                    </button>
-                    <div class="hud-divider"></div>
-                    <div class="zoom-controls">
-                        <button id="zoom-out-btn" class="btn-zoom">-</button>
-                        <span class="zoom-level" id="zoom-level">100%</span>
-                        <button id="zoom-in-btn" class="btn-zoom">+</button>
-                    </div>
-                </div>
-            </header>
-
-            <!-- Gameboard area -->
-            <div id="gameboard-container">
-                <!-- Instruction Overlay -->
-                <div class="board-instructions">
-                    <span>ðŸ’¡ Left click & drag to move â€¢ Space / Right click to rotate â€¢ Middle click / Space+Drag to pan â€¢ Scroll to zoom</span>
-                </div>
-                <!-- Main Game Canvas -->
-                <canvas id="game-canvas"></canvas>
+    <div id="app">
+        <!-- Top Navigation / Status Bar -->
+        <header id="top-bar">
+            <div class="brand">
+                <span class="brand-icon">🧩</span>
+                <h1>Co-op Jigsaw</h1>
+                <span class="subtitle-tag">Serverless P2P</span>
             </div>
 
-            <!-- Floater Preview Window -->
-            <div id="preview-panel" class="preview-panel glass hidden">
-                <div class="preview-panel-header">
-                    <span>Reference Image</span>
-                    <button id="close-preview-panel-btn" class="btn-close-sm">&times;</button>
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-label">Progress</span>
+                    <span id="progress-text" class="stat-value">0 / 0</span>
                 </div>
-                <div class="preview-panel-body">
-                    <img id="preview-img" src="" alt="Reference Preview">
+                <div class="stat-item">
+                    <span class="stat-label">Connected</span>
+                    <span id="connection-pill" class="badge badge-disconnected">● Disconnected</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Ping</span>
+                    <span id="ping-text" class="stat-value">-- ms</span>
+                </div>
+            </div>
+
+            <div class="top-actions">
+                <button id="btn-toggle-hub" class="btn btn-secondary" title="Show/Hide Connection Details">
+                    📡 Connection Hub
+                </button>
+                <button id="btn-toggle-ref" class="btn btn-secondary" title="Toggle reference ghost image">
+                    👁️ Hint Guide
+                </button>
+                <button id="btn-next-puzzle" class="btn btn-primary host-only" title="Host: Load new random puzzle">
+                    🎲 Next Photo
+                </button>
+            </div>
+        </header>
+
+        <!-- Huge Peer Connection & Lobby Banner -->
+        <section id="peer-hub" class="peer-hub">
+            <div class="peer-hub-card">
+                <div class="hub-header">
+                    <h2>P2P Connection Hub</h2>
+                    <p class="hub-subtitle">Direct, encrypted browser-to-browser connection. No accounts, no servers.</p>
+                </div>
+
+                <div class="hub-columns">
+                    <!-- Host Column -->
+                    <div class="hub-col host-box">
+                        <div class="col-title">
+                            <span class="role-badge host">👑 Host a Game</span>
+                        </div>
+                        <div class="id-display-wrap">
+                            <label>Your Peer ID</label>
+                            <div class="id-row">
+                                <span id="my-peer-id" class="peer-id-box">Initializing ID...</span>
+                                <button id="btn-copy-id" class="btn btn-copy" title="Copy Peer ID">📋 Copy ID</button>
+                            </div>
+                        </div>
+                        <div class="action-row">
+                            <button id="btn-copy-link" class="btn btn-accent btn-large">🔗 Copy 1-Click Invite Link</button>
+                        </div>
+                    </div>
+
+                    <!-- Guest Column -->
+                    <div class="hub-col guest-box">
+                        <div class="col-title">
+                            <span class="role-badge guest">🎮 Join Partner's Game</span>
+                        </div>
+                        <div class="id-input-wrap">
+                            <label for="remote-peer-input">Enter Host's Peer ID</label>
+                            <div class="input-row">
+                                <input type="text" id="remote-peer-input" placeholder="Paste host Peer ID here..." autocomplete="off" spellcheck="false">
+                                <button id="btn-connect" class="btn btn-success btn-large">Connect 🚀</button>
+                            </div>
+                        </div>
+                        <p class="join-help">Or open the 1-click invite link provided by your partner.</p>
+                    </div>
+                </div>
+
+                <!-- Live Peer List -->
+                <div class="peer-list-panel">
+                    <div class="peer-list-title">
+                        <span>👥 Connected Peers</span>
+                        <span id="peer-count" class="peer-count-badge">1 Player</span>
+                    </div>
+                    <div id="peer-list" class="peer-chips">
+                        <div class="peer-chip me">
+                            <span class="peer-dot">🟢</span>
+                            <span class="peer-name">You (<span id="my-role-display">Host</span>)</span>
+                            <span id="my-id-short" class="peer-chip-id">------</span>
+                        </div>
+                        <div id="partner-chip" class="peer-chip remote disconnected">
+                            <span class="peer-dot">⚪</span>
+                            <span class="peer-name">Partner (Waiting...)</span>
+                            <span id="partner-id-short" class="peer-chip-id">none</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Host Settings (Difficulty & File Upload) -->
+                <div id="host-settings" class="host-settings-bar host-only">
+                    <div class="setting-group">
+                        <label>Pieces / Grid:</label>
+                        <div class="btn-group">
+                            <button class="btn-diff" data-count="12">12 (Easy)</button>
+                            <button class="btn-diff active" data-count="24">24 (Medium)</button>
+                            <button class="btn-diff" data-count="36">36 (Challenging)</button>
+                            <button class="btn-diff" data-count="48">48 (Hard)</button>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label>Photos from jigsawimg:</label>
+                        <span id="photo-pool-info" class="badge">59 Photos</span>
+                        <label class="btn btn-outline file-btn">
+                            📁 Upload More Photos
+                            <input type="file" id="file-uploader" multiple accept="image/*" style="display: none;">
+                        </label>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <!-- Victory Screen Overlay -->
-        <section id="victory-screen" class="victory-overlay hidden">
-            <div class="victory-card glass">
-                <div class="victory-crown">ðŸ†</div>
-                <h2>Puzzle Completed!</h2>
-                <p>Splendidly assembled in <span id="victory-time">0:00</span> with <span id="victory-moves">0</span> placements.</p>
-                <div class="victory-actions">
-                    <button id="victory-menu-btn" class="btn-primary">New Puzzle</button>
-                </div>
+        <!-- Main Workspace: Canvas and Floating Overlay -->
+        <main id="game-workspace">
+            <div id="canvas-container">
+                <canvas id="puzzle-canvas"></canvas>
             </div>
-        </section>
 
-        <!-- Co-Op Modal -->
-        <div id="coop-modal" class="coop-modal-overlay hidden">
-            <div class="coop-modal-card glass">
-                <h3>ðŸ’– Invite Your Partner</h3>
-                <p>Send this unique link to your love in the other city. Once they open it, you will connect directly to play together!</p>
-                <div class="share-link-box">
-                    <input type="text" id="coop-share-url" readonly>
-                    <button id="copy-coop-url-btn" class="btn-primary">Copy Link</button>
-                </div>
-                <div class="coop-loader-status">
-                    <span class="pulse-dot"></span>
-                    <span id="coop-loader-text">Creating secure connection room...</span>
-                </div>
-                <button id="cancel-coop-btn" class="btn-secondary">Cancel</button>
-            </div>
-        </div>
+            <!-- Toast notification -->
+            <div id="status-toast" class="toast hidden"></div>
 
-        <!-- Joining Overlay -->
-        <div id="joining-overlay" class="joining-overlay-screen hidden">
-            <div class="joining-card glass">
-                <div class="heart-loader">ðŸ’–</div>
-                <h3>Connecting to Partner...</h3>
-                <p id="joining-overlay-status">Syncing puzzle pieces, layout, and settings. Get ready!</p>
+            <!-- Victory Celebration Modal -->
+            <div id="victory-modal" class="modal hidden">
+                <div class="modal-card">
+                    <div class="celebration-icon">🎉 🧩 ✨</div>
+                    <h2>Puzzle Completed!</h2>
+                    <p>Awesome teamwork! Every piece was placed perfectly.</p>
+                    <div class="modal-stats">
+                        <div class="modal-stat">
+                            <span class="lbl">Total Pieces</span>
+                            <span id="vic-pieces" class="val">24</span>
+                        </div>
+                        <div class="modal-stat">
+                            <span class="lbl">Time Taken</span>
+                            <span id="vic-time" class="val">00:00</span>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="btn-play-again" class="btn btn-primary btn-large host-only">Play Next Puzzle 🎲</button>
+                        <span class="guest-msg guest-only">Waiting for host to choose next puzzle...</span>
+                    </div>
+                </div>
             </div>
-        </div>
+        </main>
     </div>
 
-    <!-- Error display for diagnostics -->
-    <script>
-        window.addEventListener('error', function(e) {
-            const errDiv = document.createElement('div');
-            errDiv.style.position = 'fixed';
-            errDiv.style.bottom = '20px';
-            errDiv.style.left = '20px';
-            errDiv.style.padding = '15px';
-            errDiv.style.backgroundColor = 'rgba(239, 68, 68, 0.95)';
-            errDiv.style.color = 'white';
-            errDiv.style.borderRadius = '8px';
-            errDiv.style.zIndex = '99999';
-            errDiv.style.fontFamily = 'monospace';
-            errDiv.style.fontSize = '12px';
-            errDiv.style.maxWidth = '90%';
-            errDiv.innerText = 'Runtime Error: ' + e.message + '\nFile: ' + e.filename + '\nLine: ' + e.lineno;
-            document.body.appendChild(errDiv);
-        });
-    </script>
-    <!-- Core Game Logic -->
-    <script src="game.js?v=5"></script>
+    <script src="game.js"></script>
 </body>
 </html>
