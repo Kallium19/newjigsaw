@@ -215,8 +215,6 @@
                 remotePeerInput.value = hostParam;
                 connectToPeer(hostParam);
             } else {
-                // Host starts the initial puzzle
-                loadInitialPuzzle();
                 // Open drawer initially for host so they see the Peer ID & Invite link
                 openDrawer();
             }
@@ -583,6 +581,13 @@
             generatePuzzleBoard();
             if (isHost && conn && conn.open) {
                 broadcastInitGame();
+            }
+        };
+        img.onerror = () => {
+            console.warn('Image failed to load:', imgSrc, 'falling back to procedural image');
+            const fallback = generateProceduralPhoto();
+            if (imgSrc !== fallback) {
+                loadAndBuildPuzzle(fallback);
             }
         };
         img.src = imgSrc;
@@ -1207,8 +1212,8 @@
     // --------------------------------------------------------------------------
     function resizeCanvas() {
         const container = document.getElementById('canvas-container');
-        canvasWidth = container.clientWidth;
-        canvasHeight = container.clientHeight;
+        canvasWidth = (container && container.clientWidth) ? container.clientWidth : window.innerWidth;
+        canvasHeight = (container && container.clientHeight) ? container.clientHeight : Math.max(400, window.innerHeight - 60);
         dpr = window.devicePixelRatio || 1;
 
         canvas.width = canvasWidth * dpr;
@@ -1295,9 +1300,14 @@
     });
 
     // --------------------------------------------------------------------------
-    // Bootstrap
+    // Bootstrap: Start puzzle immediately without waiting for signaling server!
     // --------------------------------------------------------------------------
     resizeCanvas();
+    const urlParams = new URLSearchParams(window.location.search);
+    const hostParam = urlParams.get('join') || urlParams.get('host');
+    if (!hostParam) {
+        loadInitialPuzzle();
+    }
     initPeerJS();
 
 })();
