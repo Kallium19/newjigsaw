@@ -258,56 +258,167 @@ body, html {
 }
 
 /* ==========================================================================
-   Connection Hub ("Huge Peer List & Simple 2-Player Setup")
+   Hamburger Menu & Drawer System
    ========================================================================== */
 
-.peer-hub {
-    padding: 14px 20px 8px;
-    background: transparent;
-    transition: max-height 0.3s ease, opacity 0.3s ease;
-    z-index: 40;
-}
-
-.peer-hub.collapsed {
-    display: none;
-}
-
-.peer-hub-card {
-    max-width: 1200px;
-    margin: 0 auto;
-    background: var(--bg-card);
+.btn-hamburger {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 38px;
+    height: 38px;
+    background: rgba(255, 255, 255, 0.07);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: 18px 24px;
-    box-shadow: var(--shadow-soft);
-    backdrop-filter: blur(16px);
+    border-radius: var(--radius-sm);
+    padding: 9px 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.hub-header {
-    margin-bottom: 14px;
-    text-align: center;
+.btn-hamburger:hover {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: var(--primary);
+    transform: scale(1.03);
 }
 
-.hub-header h2 {
+.btn-hamburger .bar {
+    width: 100%;
+    height: 2.5px;
+    background: var(--text-main);
+    border-radius: 2px;
+    transition: all 0.2s ease;
+}
+
+.badge.clickable {
+    cursor: pointer;
+    transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.badge.clickable:hover {
+    filter: brightness(1.25);
+    transform: scale(1.05);
+}
+
+.badge-reconnecting {
+    background: rgba(245, 158, 11, 0.22);
+    color: #fde047;
+    border: 1px solid rgba(245, 158, 11, 0.6);
+    animation: pulseBadge 1.2s infinite ease-in-out;
+}
+
+@keyframes pulseBadge {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.65; transform: scale(0.97); }
+}
+
+/* ==========================================================================
+   Unobtrusive Slide-out Drawer
+   ========================================================================== */
+
+.drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(5px);
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body.drawer-open .drawer-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.peer-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(540px, 94vw);
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.97);
+    backdrop-filter: blur(24px);
+    border-right: 1px solid var(--border-color);
+    box-shadow: 15px 0 45px rgba(0, 0, 0, 0.7);
+    z-index: 110;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(-105%);
+    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body.drawer-open .peer-drawer {
+    transform: translateX(0);
+}
+
+.drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(11, 15, 25, 0.75);
+}
+
+.drawer-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.drawer-icon {
+    font-size: 1.3rem;
+}
+
+.drawer-header h2 {
     font-size: 1.15rem;
     font-weight: 700;
-    letter-spacing: -0.01em;
+    color: var(--text-main);
+}
+
+.btn-icon-close {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-icon-close:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.drawer-content {
+    padding: 20px 22px;
+    overflow-y: auto;
+    flex: 1;
 }
 
 .hub-subtitle {
     font-size: 0.8rem;
     color: var(--text-muted);
+    margin-bottom: 16px;
 }
 
 .hub-columns {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     margin-bottom: 16px;
 }
 
 .hub-col {
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(15, 23, 42, 0.7);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
     padding: 14px 16px;

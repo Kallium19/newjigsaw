@@ -58,16 +58,24 @@
     let gameStartTime = null;
     let timerInterval = null;
 
+    // P2P Reconnection State
+    let targetRemotePeerId = null; // Stored remote partner ID for automatic reconnection
+    let reconnectInterval = null;
+    let reconnectAttempts = 0;
+    let missedPings = 0;
+
     // UI Elements
     const myPeerIdEl = document.getElementById('my-peer-id');
     const remotePeerInput = document.getElementById('remote-peer-input');
     const btnConnect = document.getElementById('btn-connect');
     const btnCopyId = document.getElementById('btn-copy-id');
     const btnCopyLink = document.getElementById('btn-copy-link');
-    const btnToggleHub = document.getElementById('btn-toggle-hub');
+    const btnHamburger = document.getElementById('btn-hamburger');
+    const btnCloseDrawer = document.getElementById('btn-close-drawer');
+    const drawerBackdrop = document.getElementById('drawer-backdrop');
+    const peerDrawer = document.getElementById('peer-drawer');
     const btnToggleRef = document.getElementById('btn-toggle-ref');
     const btnNextPuzzle = document.getElementById('btn-next-puzzle');
-    const peerHub = document.getElementById('peer-hub');
     const connectionPill = document.getElementById('connection-pill');
     const pingText = document.getElementById('ping-text');
     const progressText = document.getElementById('progress-text');
@@ -177,7 +185,37 @@
             myRoleDisplay.textContent = 'Guest';
         }
 
-        // Initialize Peer with random human-friendly ID or fallback
+    // --------------------------------------------------------------------------
+    // Drawer Management (Unobtrusive Menu)
+    // --------------------------------------------------------------------------
+    function openDrawer() {
+        document.body.classList.add('drawer-open');
+    }
+
+    function closeDrawer() {
+        document.body.classList.remove('drawer-open');
+    }
+
+    function toggleDrawer() {
+        document.body.classList.toggle('drawer-open');
+    }
+
+    // --------------------------------------------------------------------------
+    // Session Initialization & Repetitive Auto-Reconnection
+    // --------------------------------------------------------------------------
+    function initPeerJS() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hostParam = urlParams.get('join') || urlParams.get('host');
+
+        // Check if user is joining as guest via URL
+        if (hostParam) {
+            isHost = false;
+            document.body.classList.add('is-guest');
+            myRoleDisplay.textContent = 'Guest';
+            targetRemotePeerId = hostParam;
+        }
+
+        // Initialize Peer with random human-friendly ID
         peer = new Peer();
 
         peer.on('open', (id) => {
@@ -192,58 +230,86 @@
             } else {
                 // Host starts the initial puzzle
                 loadInitialPuzzle();
+                // Open drawer initially for host so they see the Peer ID & Invite link
+                openDrawer();
             }
         });
 
         // Incoming connection (Host receives connection from Guest)
         peer.on('connection', (incomingConn) => {
+            // Close any stale existing connection and accept the new/reconnecting one
             if (conn) {
-                // Already connected to a partner in this 2-player game
-                incomingConn.close();
-                return;
+                try { conn.close(); } catch (e) {}
             }
             conn = incomingConn;
+            targetRemotePeerId = incomingConn.peer;
             setupDataChannel();
         });
 
         peer.on('error', (err) => {
-            console.error('PeerJS error:', err);
-            showToast('⚠️ Peer connection error: ' + err.type);
+            console.warn('PeerJS signaling notice:', err.type);
+            // Reconnect signaling automatically on network drops
+            if (err.type === 'disconnected' || err.type === 'network') {
+                if (peer && !peer.destroyed) peer.reconnect();
+            }
         });
 
         peer.on('disconnected', () => {
-            peer.reconnect();
+            console.log('[P2P] PeerJS signaling disconnected. Reconnecting...');
+            if (peer && !peer.destroyed) {
+                peer.reconnect();
+            }
         });
     }
 
     function connectToPeer(targetId) {
         if (!targetId || targetId === myPeerId) return;
+        targetRemotePeerId = targetId;
         setConnectionStatus('connecting');
 
         isHost = false;
         document.body.classList.add('is-guest');
         myRoleDisplay.textContent = 'Guest';
 
+        if (conn) {
+            try { conn.close(); } catch (e) {}
+        }
         conn = peer.connect(targetId, { reliable: true });
         setupDataChannel();
     }
 
     function setupDataChannel() {
+        if (!conn) return;
+
         conn.on('open', () => {
             remotePeerId = conn.peer;
+            targetRemotePeerId = conn.peer;
+            missedPings = 0;
+
+            // Clear any active repetitive reconnection loop
+            if (reconnectInterval) {
+                clearInterval(reconnectInterval);
+                reconnectInterval = null;
+                reconnectAttempts = 0;
+            }
+
             setConnectionStatus('connected');
             showToast('🟢 Connected to partner!');
+
+            // Automatically close drawer when connection succeeds to show full puzzle view!
+            closeDrawer();
 
             // Start heartbeat ping
             startPingInterval();
 
             if (isHost) {
-                // Send currently active puzzle to the guest
+                // Broadcast current game state (preserving all piece coordinates & solved state!)
                 broadcastInitGame();
             }
         });
 
         conn.on('data', (data) => {
+            missedPings = 0;
             handleRemoteData(data);
         });
 
@@ -252,25 +318,39 @@
         });
 
         conn.on('error', (err) => {
-            console.error('Data channel error:', err);
+            console.warn('Data channel error:', err);
             handlePartnerDisconnected();
         });
     }
 
-    function setConnectionStatus(status) {
+    function setConnectionStatus(status, attempt = 0) {
         if (status === 'connected') {
-            connectionPill.className = 'badge badge-connected';
+            connectionPill.className = 'badge badge-connected clickable';
             connectionPill.textContent = '● Connected';
             partnerChip.className = 'peer-chip remote connected';
             partnerChip.querySelector('.peer-name').textContent = isHost ? 'Guest' : 'Host';
             partnerIdShort.textContent = remotePeerId ? remotePeerId.slice(0, 8) + '...' : 'active';
             peerCountBadge.textContent = '2 Players';
         } else if (status === 'connecting') {
-            connectionPill.className = 'badge badge-connecting';
+            connectionPill.className = 'badge badge-connecting clickable';
             connectionPill.textContent = '● Connecting...';
             peerCountBadge.textContent = 'Connecting...';
+        } else if (status === 'reconnecting') {
+            connectionPill.className = 'badge badge-reconnecting clickable';
+            connectionPill.textContent = attempt > 0 ? `● Reconnecting (${attempt})...` : '● Reconnecting...';
+            partnerChip.className = 'peer-chip remote disconnected';
+            partnerChip.querySelector('.peer-name').textContent = 'Reconnecting...';
+            peerCountBadge.textContent = 'Reconnecting';
+            pingText.textContent = '-- ms';
+        } else if (status === 'waiting-reconnect') {
+            connectionPill.className = 'badge badge-connecting clickable';
+            connectionPill.textContent = '● Waiting for partner...';
+            partnerChip.className = 'peer-chip remote disconnected';
+            partnerChip.querySelector('.peer-name').textContent = 'Partner (Disconnected)';
+            peerCountBadge.textContent = '1 Player';
+            pingText.textContent = '-- ms';
         } else {
-            connectionPill.className = 'badge badge-disconnected';
+            connectionPill.className = 'badge badge-disconnected clickable';
             connectionPill.textContent = '● Disconnected';
             partnerChip.className = 'peer-chip remote disconnected';
             partnerChip.querySelector('.peer-name').textContent = 'Partner (Waiting...)';
@@ -283,10 +363,9 @@
     function handlePartnerDisconnected() {
         conn = null;
         remotePeerId = null;
-        setConnectionStatus('disconnected');
         clearInterval(pingInterval);
-        showToast('⚠️ Partner disconnected');
-        // Release any remote locks
+
+        // Release any remote locks locally
         pieces.forEach(p => {
             if (p.isLocked && p.lockedBy !== myPeerId) {
                 p.isLocked = false;
@@ -294,12 +373,67 @@
             }
         });
         requestRender();
+
+        // Repetitive reconnection logic!
+        if (!isHost && targetRemotePeerId) {
+            startAutoReconnect();
+        } else if (isHost) {
+            setConnectionStatus('waiting-reconnect');
+            showToast('⚠️ Partner disconnected. Waiting to reconnect...', 4000);
+            if (peer && peer.disconnected) {
+                peer.reconnect();
+            }
+        } else {
+            setConnectionStatus('disconnected');
+            showToast('⚠️ Disconnected');
+        }
+    }
+
+    function startAutoReconnect() {
+        if (reconnectInterval) return;
+        reconnectAttempts = 0;
+        setConnectionStatus('reconnecting', 0);
+        showToast('🔄 Connection dropped. Automatically reconnecting...', 3500);
+
+        reconnectInterval = setInterval(() => {
+            if (conn && conn.open) {
+                clearInterval(reconnectInterval);
+                reconnectInterval = null;
+                return;
+            }
+
+            reconnectAttempts++;
+            setConnectionStatus('reconnecting', reconnectAttempts);
+
+            // Re-establish signaling if needed
+            if (peer && peer.disconnected) {
+                peer.reconnect();
+            }
+
+            if (!conn || !conn.open) {
+                console.log(`[P2P] Auto-reconnect attempt #${reconnectAttempts} to ${targetRemotePeerId}...`);
+                try {
+                    if (conn) conn.close();
+                } catch (e) {}
+
+                conn = peer.connect(targetRemotePeerId, { reliable: true });
+                setupDataChannel();
+            }
+        }, 3000);
     }
 
     function startPingInterval() {
         clearInterval(pingInterval);
+        missedPings = 0;
         pingInterval = setInterval(() => {
             if (conn && conn.open) {
+                missedPings++;
+                if (missedPings >= 3) {
+                    // Missed 3 consecutive pings (9s): connection likely dropped
+                    console.warn('[P2P] Missed pings. Triggering reconnection check...');
+                    handlePartnerDisconnected();
+                    return;
+                }
                 lastPingTime = performance.now();
                 sendPayload({ type: 'PING', time: lastPingTime });
             }
@@ -1129,9 +1263,15 @@
         showToast('🔗 1-Click Invite Link copied!');
     });
 
-    btnToggleHub.addEventListener('click', () => {
-        peerHub.classList.toggle('collapsed');
-        resizeCanvas();
+    btnHamburger.addEventListener('click', toggleDrawer);
+    btnCloseDrawer.addEventListener('click', closeDrawer);
+    drawerBackdrop.addEventListener('click', closeDrawer);
+    connectionPill.addEventListener('click', toggleDrawer);
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeDrawer();
+        }
     });
 
     btnToggleRef.addEventListener('click', () => {
