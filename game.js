@@ -215,8 +215,8 @@
                 remotePeerInput.value = hostParam;
                 connectToPeer(hostParam);
             } else {
-                // Open drawer initially for host so they see the Peer ID & Invite link
-                openDrawer();
+                // Keep drawer closed initially so canvas view is never obstructed
+                showToast('?? Puzzle ready! Click ? to invite a friend or connect', 3500);
             }
         });
 
