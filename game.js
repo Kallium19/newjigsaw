@@ -12,7 +12,7 @@
     // State & Constants
     // --------------------------------------------------------------------------
     const SNAP_THRESHOLD = 32; // Pixels distance to snap to target
-    const TAB_RATIO = 0.22;    // Size ratio of interlocking jigsaw tabs
+    const TILE_RADIUS = 5;     // Subtle rounded corner for tactile boxy tiles
     let targetPieceCount = 24;  // Default piece count (12, 24, 36, 48)
 
     // Role and PeerJS variables
@@ -279,7 +279,7 @@
             }
 
             setConnectionStatus('connected');
-            showToast('🟢 Connected to partner!');
+            showToast('?? Connected to partner!');
 
             // Automatically close drawer when connection succeeds to show full puzzle view!
             closeDrawer();
@@ -311,32 +311,32 @@
     function setConnectionStatus(status, attempt = 0) {
         if (status === 'connected') {
             connectionPill.className = 'badge badge-connected clickable';
-            connectionPill.textContent = '● Connected';
+            connectionPill.textContent = '? Connected';
             partnerChip.className = 'peer-chip remote connected';
             partnerChip.querySelector('.peer-name').textContent = isHost ? 'Guest' : 'Host';
             partnerIdShort.textContent = remotePeerId ? remotePeerId.slice(0, 8) + '...' : 'active';
             peerCountBadge.textContent = '2 Players';
         } else if (status === 'connecting') {
             connectionPill.className = 'badge badge-connecting clickable';
-            connectionPill.textContent = '● Connecting...';
+            connectionPill.textContent = '? Connecting...';
             peerCountBadge.textContent = 'Connecting...';
         } else if (status === 'reconnecting') {
             connectionPill.className = 'badge badge-reconnecting clickable';
-            connectionPill.textContent = attempt > 0 ? `● Reconnecting (${attempt})...` : '● Reconnecting...';
+            connectionPill.textContent = attempt > 0 ? `? Reconnecting (${attempt})...` : '? Reconnecting...';
             partnerChip.className = 'peer-chip remote disconnected';
             partnerChip.querySelector('.peer-name').textContent = 'Reconnecting...';
             peerCountBadge.textContent = 'Reconnecting';
             pingText.textContent = '-- ms';
         } else if (status === 'waiting-reconnect') {
             connectionPill.className = 'badge badge-connecting clickable';
-            connectionPill.textContent = '● Waiting for partner...';
+            connectionPill.textContent = '? Waiting for partner...';
             partnerChip.className = 'peer-chip remote disconnected';
             partnerChip.querySelector('.peer-name').textContent = 'Partner (Disconnected)';
             peerCountBadge.textContent = '1 Player';
             pingText.textContent = '-- ms';
         } else {
             connectionPill.className = 'badge badge-disconnected clickable';
-            connectionPill.textContent = '● Disconnected';
+            connectionPill.textContent = '? Disconnected';
             partnerChip.className = 'peer-chip remote disconnected';
             partnerChip.querySelector('.peer-name').textContent = 'Partner (Waiting...)';
             partnerIdShort.textContent = 'none';
@@ -364,13 +364,13 @@
             startAutoReconnect();
         } else if (isHost) {
             setConnectionStatus('waiting-reconnect');
-            showToast('⚠️ Partner disconnected. Waiting to reconnect...', 4000);
+            showToast('?? Partner disconnected. Waiting to reconnect...', 4000);
             if (peer && peer.disconnected) {
                 peer.reconnect();
             }
         } else {
             setConnectionStatus('disconnected');
-            showToast('⚠️ Disconnected');
+            showToast('?? Disconnected');
         }
     }
 
@@ -378,7 +378,7 @@
         if (reconnectInterval) return;
         reconnectAttempts = 0;
         setConnectionStatus('reconnecting', 0);
-        showToast('🔄 Connection dropped. Automatically reconnecting...', 3500);
+        showToast('?? Connection dropped. Automatically reconnecting...', 3500);
 
         reconnectInterval = setInterval(() => {
             if (conn && conn.open) {
@@ -558,7 +558,7 @@
                 loadedCount++;
                 if (loadedCount === files.length) {
                     photoPoolInfo.textContent = `${photoPool.length} Photos`;
-                    showToast(`📁 Added ${loadedCount} photos into RAM!`);
+                    showToast(`?? Added ${loadedCount} photos into RAM!`);
                     if (isHost) pickRandomPhotoAndStart();
                 }
             };
@@ -633,27 +633,7 @@
         pieceWidth = boardWidth / gridCols;
         pieceHeight = boardHeight / gridRows;
 
-        // Generate interlocking jigsaw edge tabs:
-        // Horizontal edges: [rows - 1][cols]
-        // Vertical edges: [rows][cols - 1]
-        // +1 = tab pointing right/down, -1 = blank pointing left/up, 0 = flat boundary
-        const hEdges = [];
-        for (let r = 0; r < gridRows - 1; r++) {
-            hEdges[r] = [];
-            for (let c = 0; c < gridCols; c++) {
-                hEdges[r][c] = Math.random() < 0.5 ? 1 : -1;
-            }
-        }
-
-        const vEdges = [];
-        for (let r = 0; r < gridRows; r++) {
-            vEdges[r] = [];
-            for (let c = 0; c < gridCols - 1; c++) {
-                vEdges[r][c] = Math.random() < 0.5 ? 1 : -1;
-            }
-        }
-
-        // Generate Piece Objects
+        // Generate Boxy Piece Objects
         pieces = [];
         for (let r = 0; r < gridRows; r++) {
             for (let c = 0; c < gridCols; c++) {
@@ -661,12 +641,7 @@
                 const targetX = boardX + c * pieceWidth;
                 const targetY = boardY + r * pieceHeight;
 
-                const edges = {
-                    top: r === 0 ? 0 : -hEdges[r - 1][c],
-                    right: c === gridCols - 1 ? 0 : vEdges[r][c],
-                    bottom: r === gridRows - 1 ? 0 : hEdges[r][c],
-                    left: c === 0 ? 0 : -vEdges[r][c - 1]
-                };
+                const edges = { top: 0, right: 0, bottom: 0, left: 0 };
 
                 // Scatter pieces initially into surrounding trays (avoiding center board)
                 const scatter = getScatteredPosition(pieceWidth, pieceHeight);
@@ -741,15 +716,12 @@
     }
 
     // --------------------------------------------------------------------------
-    // Off-Screen Canvas Slicing with Jigsaw Tabs
+    // Off-Screen Canvas Slicing: Boxy Rectangular Tiles
     // --------------------------------------------------------------------------
     function renderPieceCanvases() {
-        const tabSizeX = pieceWidth * TAB_RATIO;
-        const tabSizeY = pieceHeight * TAB_RATIO;
-
         pieces.forEach(p => {
-            const offW = pieceWidth + tabSizeX * 2;
-            const offH = pieceHeight + tabSizeY * 2;
+            const offW = pieceWidth;
+            const offH = pieceHeight;
 
             const offCanvas = document.createElement('canvas');
             offCanvas.width = offW * dpr;
@@ -757,117 +729,56 @@
             const offCtx = offCanvas.getContext('2d');
             offCtx.scale(dpr, dpr);
 
-            // Origin of the piece body inside the offscreen canvas
-            const ox = tabSizeX;
-            const oy = tabSizeY;
-
-            // Define clipping path
+            // 1. Boxy tile clipping path with subtle rounded corners
             offCtx.save();
-            createPiecePath(offCtx, ox, oy, pieceWidth, pieceHeight, p.edges, tabSizeX, tabSizeY);
+            offCtx.beginPath();
+            if (offCtx.roundRect) {
+                offCtx.roundRect(0, 0, offW, offH, TILE_RADIUS);
+            } else {
+                offCtx.rect(0, 0, offW, offH);
+            }
             offCtx.clip();
 
-            // Draw image slice using drawImage()
-            // Map the piece coordinates to the source image's natural dimensions
+            // 2. Draw image slice directly
             const sx = (p.gridX / gridCols) * currentImage.naturalWidth;
             const sy = (p.gridY / gridRows) * currentImage.naturalHeight;
             const sw = currentImage.naturalWidth / gridCols;
             const sh = currentImage.naturalHeight / gridRows;
 
-            // Extra image area to cover tabs
-            const tabFractionX = TAB_RATIO / gridCols * currentImage.naturalWidth;
-            const tabFractionY = TAB_RATIO / gridRows * currentImage.naturalHeight;
-
             offCtx.drawImage(
                 currentImage,
-                sx - tabFractionX, sy - tabFractionY,
-                sw + tabFractionX * 2, sh + tabFractionY * 2,
+                sx, sy, sw, sh,
                 0, 0, offW, offH
             );
 
-            // Subtle 3D Bevel / Border overlay
+            // 3. Tactile 3D Bevel / Border overlay
             offCtx.restore();
             offCtx.save();
-            createPiecePath(offCtx, ox, oy, pieceWidth, pieceHeight, p.edges, tabSizeX, tabSizeY);
-            offCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            offCtx.beginPath();
+            if (offCtx.roundRect) {
+                offCtx.roundRect(0.5, 0.5, offW - 1, offH - 1, TILE_RADIUS);
+            } else {
+                offCtx.rect(0.5, 0.5, offW - 1, offH - 1);
+            }
+            offCtx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
             offCtx.lineWidth = 1.5;
             offCtx.stroke();
 
-            offCtx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+            offCtx.beginPath();
+            if (offCtx.roundRect) {
+                offCtx.roundRect(0, 0, offW, offH, TILE_RADIUS);
+            } else {
+                offCtx.rect(0, 0, offW, offH);
+            }
+            offCtx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
             offCtx.lineWidth = 1;
             offCtx.stroke();
             offCtx.restore();
 
             p.offscreenCanvas = offCanvas;
-            p.tabOffsetX = tabSizeX;
-            p.tabOffsetY = tabSizeY;
+            p.tabOffsetX = 0;
+            p.tabOffsetY = 0;
         });
-    }
-
-    /**
-     * Draw classic interlocking jigsaw piece boundary with cubic Bezier curves
-     */
-    function createPiecePath(c, ox, oy, w, h, edges, tx, ty) {
-        c.beginPath();
-        c.moveTo(ox, oy);
-
-        // TOP EDGE
-        if (edges.top === 0) {
-            c.lineTo(ox + w, oy);
-        } else {
-            drawTabEdge(c, ox, oy, ox + w, oy, edges.top, ty, false);
-        }
-
-        // RIGHT EDGE
-        if (edges.right === 0) {
-            c.lineTo(ox + w, oy + h);
-        } else {
-            drawTabEdge(c, ox + w, oy, ox + w, oy + h, edges.right, tx, true);
-        }
-
-        // BOTTOM EDGE
-        if (edges.bottom === 0) {
-            c.lineTo(ox, oy + h);
-        } else {
-            drawTabEdge(c, ox + w, oy + h, ox, oy + h, edges.bottom, ty, false);
-        }
-
-        // LEFT EDGE
-        if (edges.left === 0) {
-            c.closePath();
-        } else {
-            drawTabEdge(c, ox, oy + h, ox, oy, edges.left, tx, true);
-            c.closePath();
-        }
-    }
-
-    function drawTabEdge(c, x1, y1, x2, y2, dir, tabSize, isVertical) {
-        const dx = x2 - x1;
-        const dy = y2 - y1;
-        const len = Math.hypot(dx, dy);
-        const angle = Math.atan2(dy, dx);
-
-        c.save();
-        c.translate(x1, y1);
-        c.rotate(angle);
-
-        // Normalized along local X axis [0, len]
-        const neckWidth = len * 0.18;
-        const headWidth = len * 0.32;
-        const tabHeight = tabSize * (dir > 0 ? -1 : 1);
-
-        const mid = len / 2;
-        const p1 = mid - headWidth / 2;
-        const p2 = mid - neckWidth / 2;
-        const p3 = mid + neckWidth / 2;
-        const p4 = mid + headWidth / 2;
-
-        c.lineTo(p1, 0);
-        c.bezierCurveTo(p1, tabHeight * 0.2, p2, tabHeight * 0.8, p2, tabHeight);
-        c.bezierCurveTo(p2, tabHeight * 1.3, p3, tabHeight * 1.3, p3, tabHeight);
-        c.bezierCurveTo(p3, tabHeight * 0.8, p4, tabHeight * 0.2, p4, 0);
-        c.lineTo(len, 0);
-
-        c.restore();
     }
 
     // --------------------------------------------------------------------------
@@ -944,7 +855,7 @@
             victoryModal.classList.add('hidden');
             updateProgress();
             requestRender();
-            showToast('🧩 New puzzle loaded from Host!');
+            showToast('?? New puzzle loaded from Host!');
         };
         img.src = data.imageSrc;
     }
@@ -977,7 +888,7 @@
                 // Mutex lock check: cannot pick up locked or solved piece
                 if (p.isSolved || p.isLocked) {
                     if (p.isLocked && p.lockedBy !== myPeerId) {
-                        showToast('🔒 Piece is locked by partner');
+                        showToast('?? Piece is locked by partner');
                     }
                     return;
                 }
@@ -1063,7 +974,7 @@
             if (!p.isSolved) {
                 p.isSolved = true;
                 Sound.snap();
-                showToast('✨ Piece Snapped!', 1200);
+                showToast('? Piece Snapped!', 1200);
             }
         }
     }
@@ -1176,22 +1087,30 @@
     }
 
     function drawPieceOnCanvas(p) {
-        const drawX = p.x - (p.tabOffsetX || 0);
-        const drawY = p.y - (p.tabOffsetY || 0);
         const offW = p.offscreenCanvas.width / dpr;
         const offH = p.offscreenCanvas.height / dpr;
 
-        // Shadow under lifted pieces
+        // Shadow under lifted / moving pieces
         if (p.isLocked) {
             ctx.save();
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-            ctx.shadowBlur = 18;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+            ctx.shadowBlur = 22;
             ctx.shadowOffsetX = 6;
             ctx.shadowOffsetY = 10;
-            ctx.drawImage(p.offscreenCanvas, drawX, drawY, offW, offH);
+            ctx.drawImage(p.offscreenCanvas, p.x, p.y, offW, offH);
+            ctx.restore();
+        } else if (!p.isSolved) {
+            // Tactile tile shadow for loose pieces
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+            ctx.shadowBlur = 7;
+            ctx.shadowOffsetX = 3;
+            ctx.shadowOffsetY = 4;
+            ctx.drawImage(p.offscreenCanvas, p.x, p.y, offW, offH);
             ctx.restore();
         } else {
-            ctx.drawImage(p.offscreenCanvas, drawX, drawY, offW, offH);
+            // Solved pieces snap clean and flush
+            ctx.drawImage(p.offscreenCanvas, p.x, p.y, offW, offH);
         }
 
         // Visual Indicator for remote locked piece
@@ -1245,14 +1164,14 @@
     btnCopyId.addEventListener('click', () => {
         if (!myPeerId) return;
         navigator.clipboard.writeText(myPeerId);
-        showToast('📋 Peer ID copied to clipboard!');
+        showToast('?? Peer ID copied to clipboard!');
     });
 
     btnCopyLink.addEventListener('click', () => {
         if (!myPeerId) return;
         const link = `${window.location.origin}${window.location.pathname}?join=${encodeURIComponent(myPeerId)}`;
         navigator.clipboard.writeText(link);
-        showToast('🔗 1-Click Invite Link copied!');
+        showToast('?? 1-Click Invite Link copied!');
     });
 
     btnHamburger.addEventListener('click', toggleDrawer);
@@ -1276,7 +1195,7 @@
     btnNextPuzzle.addEventListener('click', () => {
         if (isHost) {
             pickRandomPhotoAndStart();
-            showToast('🎲 Loading next random photo...');
+            showToast('?? Loading next random photo...');
         }
     });
 
@@ -1294,7 +1213,7 @@
             if (isHost && currentImage) {
                 generatePuzzleBoard();
                 if (conn && conn.open) broadcastInitGame();
-                showToast(`🧩 Difficulty set to ${targetPieceCount} pieces`);
+                showToast(`?? Difficulty set to ${targetPieceCount} pieces`);
             }
         });
     });
